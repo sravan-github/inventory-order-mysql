@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Order Service Frontend</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      margin: 40px;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    form {
+      background: #fff;
+      padding: 20px;
+      border-radius: 5px;
+      max-width: 500px;
+      box-shadow: 0 0 10px #ccc;
+      margin-bottom: 30px;
+    }
+    select, input {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 10px 20px;
+      background: #28a745;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+    button:hover {
+      background: #218838;
+    }
+    .result {
+      background: #fff;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px #ccc;
+      max-width: 500px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+    th {
+      background: #007bff;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Order Service</h1>
+
+<h2>Place Order</h2>
+<form id="orderForm">
+  <label for="inventoryItem">Select Inventory Item:</label>
+  <select id="inventoryItem" required>
+    <option value="">Loading items...</option>
+  </select>
+
+  <label for="quantity">Quantity:</label>
+  <input type="number" id="quantity" min="1" required />
+
+  <button type="submit">Place Order</button>
+</form>
+
+<div id="result" class="result" style="display:none;">
+  <h2>Order Result</h2>
+  <table>
+    <tbody id="resultTable"></tbody>
+  </table>
+</div>
+
+<script>
+  const INVENTORY_API = "http://localhost:8080/api/inventory";
+  const ORDER_API = "http://localhost:8081/api/orders";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadInventoryItems();
+
+    document.getElementById("orderForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      placeOrder();
+    });
+  });
+
+  function loadInventoryItems() {
+    fetch(INVENTORY_API)
+      .then(response => response.json())
+      .then(items => {
+        const select = document.getElementById("inventoryItem");
+        select.innerHTML = "<option value=''>-- Select an item --</option>";
+        items.forEach(item => {
+          const option = document.createElement("option");
+          option.value = item.id;
+          option.text = `${item.name} (SKU: ${item.skuCode}) - Qty: ${item.quantity} - $${item.price}`;
+          select.appendChild(option);
+        });
+      })
+      .catch(error => {
+        console.error(error);
+        alert("Failed to load inventory items.");
+      });
+  }
+
+  function placeOrder() {
+    const itemId = document.getElementById("inventoryItem").value;
+    const quantity = document.getElementById("quantity").value;
+
+    if (!itemId || !quantity) {
+      alert("Please select item and enter quantity.");
+      return;
+    }
+
+    fetch(`${ORDER_API}?inventoryItemId=${itemId}&quantity=${quantity}`, {
+      method: "POST"
+    })
+    .then(response => response.json())
+    .then(order => {
+      displayResult(order);
+      document.getElementById("orderForm").reset();
+    })
+    .catch(error => {
+      console.error(error);
+      alert("Error placing order.");
+    });
+  }
+
+  function displayResult(order) {
+    document.getElementById("result").style.display = "block";
+
+    const tbody = document.getElementById("resultTable");
+    tbody.innerHTML = `
+      <tr><th>Order ID</th><td>${order.id || "-"}</td></tr>
+      <tr><th>SKU Code</th><td>${order.skuCode}</td></tr>
+      <tr><th>Quantity</th><td>${order.quantity}</td></tr>
+      <tr><th>Price</th><td>${order.price}</td></tr>
+      <tr><th>Status</th><td>${order.status}</td></tr>
+    `;
+  }
+</script>
+
+</body>
+</html>

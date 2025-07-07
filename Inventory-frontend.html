@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Inventory Service Frontend</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background-color: #f9f9f9;
+    }
+    h1 {
+      color: #333;
+    }
+    form {
+      background: #fff;
+      padding: 20px;
+      margin-bottom: 30px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px #ccc;
+      max-width: 600px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 10px 20px;
+      background: #007bff;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: #fff;
+      box-shadow: 0 0 10px #ccc;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: left;
+    }
+    th {
+      background: #007bff;
+      color: #fff;
+    }
+    .actions button {
+      background: #28a745;
+      margin-right: 5px;
+    }
+    .actions button.delete {
+      background: #dc3545;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Inventory Service</h1>
+
+<h2>Add New Item</h2>
+<form id="addForm">
+  <label>SKU Code</label>
+  <input type="text" id="skuCode" required />
+  <label>Name</label>
+  <input type="text" id="name" required />
+  <label>Description</label>
+  <textarea id="description"></textarea>
+  <label>Quantity</label>
+  <input type="number" id="quantity" required />
+  <label>Price</label>
+  <input type="number" step="0.01" id="price" required />
+  <button type="submit">Add Item</button>
+</form>
+
+<h2>Inventory List</h2>
+<table id="itemsTable">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>SKU</th>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Quantity</th>
+      <th>Price</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<!-- Update Modal -->
+<div id="updateModal" style="display: none; position: fixed; top: 20%; left: 35%; background: #fff; padding: 20px; border: 1px solid #ccc; box-shadow: 0 0 20px #333;">
+  <h2>Update Item</h2>
+  <form id="updateForm">
+    <input type="hidden" id="updateId" />
+    <label>SKU Code</label>
+    <input type="text" id="updateSkuCode" required />
+    <label>Name</label>
+    <input type="text" id="updateName" required />
+    <label>Description</label>
+    <textarea id="updateDescription"></textarea>
+    <label>Quantity</label>
+    <input type="number" id="updateQuantity" required />
+    <label>Price</label>
+    <input type="number" step="0.01" id="updatePrice" required />
+    <button type="submit">Update Item</button>
+    <button type="button" onclick="closeModal()" style="background: #6c757d; margin-left: 10px;">Cancel</button>
+  </form>
+</div>
+
+<script>
+  const API_URL = "http://localhost:8080/api/inventory";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadItems();
+
+    document.getElementById("addForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      addItem();
+    });
+
+    document.getElementById("updateForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      updateItem();
+    });
+  });
+
+  function loadItems() {
+    fetch(API_URL)
+      .then(res => res.json())
+      .then(data => {
+        const tbody = document.querySelector("#itemsTable tbody");
+        tbody.innerHTML = "";
+        data.forEach(item => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${item.id}</td>
+            <td>${item.skuCode}</td>
+            <td>${item.name}</td>
+            <td>${item.description || ""}</td>
+            <td>${item.quantity}</td>
+            <td>${item.price}</td>
+            <td class="actions">
+              <button onclick='showUpdateModal(${JSON.stringify(item)})'>Edit</button>
+              <button class='delete' onclick='deleteItem(${item.id})'>Delete</button>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      });
+  }
+
+  function addItem() {
+    const newItem = {
+      skuCode: document.getElementById("skuCode").value,
+      name: document.getElementById("name").value,
+      description: document.getElementById("description").value,
+      quantity: parseInt(document.getElementById("quantity").value),
+      price: parseFloat(document.getElementById("price").value)
+    };
+
+    fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(newItem)
+    })
+    .then(res => res.json())
+    .then(() => {
+      document.getElementById("addForm").reset();
+      loadItems();
+    });
+  }
+
+  function deleteItem(id) {
+    if (confirm("Are you sure?")) {
+      fetch(`${API_URL}/${id}`, {
+        method: "DELETE"
+      }).then(() => loadItems());
+    }
+  }
+
+  function showUpdateModal(item) {
+    document.getElementById("updateId").value = item.id;
+    document.getElementById("updateSkuCode").value = item.skuCode;
+    document.getElementById("updateName").value = item.name;
+    document.getElementById("updateDescription").value = item.description || "";
+    document.getElementById("updateQuantity").value = item.quantity;
+    document.getElementById("updatePrice").value = item.price;
+    document.getElementById("updateModal").style.display = "block";
+  }
+
+  function closeModal() {
+    document.getElementById("updateModal").style.display = "none";
+  }
+
+  function updateItem() {
+    const id = document.getElementById("updateId").value;
+    const updatedItem = {
+      skuCode: document.getElementById("updateSkuCode").value,
+      name: document.getElementById("updateName").value,
+      description: document.getElementById("updateDescription").value,
+      quantity: parseInt(document.getElementById("updateQuantity").value),
+      price: parseFloat(document.getElementById("updatePrice").value)
+    };
+
+    fetch(`${API_URL}/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(updatedItem)
+    }).then(() => {
+      closeModal();
+      loadItems();
+    });
+  }
+</script>
+
+</body>
+</html>
